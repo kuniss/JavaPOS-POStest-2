@@ -1,0 +1,141 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// Build Script for building JavaPOS Contracts Library
+// 
+// Author: denis.kuniss@dieboldnixdorf.com (2021)
+//
+///////////////////////////////////////////////////////////////////////////////
+
+plugins {
+	id 'application' // java application
+	id 'signing'
+	id 'eclipse'
+	id 'maven-publish'
+	id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
+	id 'project-report'
+}
+
+wrapper {
+	gradleVersion = '8.14.2'
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Names and Versions
+///////////////////////////////////////////////////////////////////////////////
+
+def artifactName = 'POStest2'
+def uposVersion = '1.13'
+version='2.1.0'
+ 
+///////////////////////////////////////////////////////////////////////////////
+// Project Configurations
+///////////////////////////////////////////////////////////////////////////////
+
+def javaposManifest = java.manifest {
+        attributes('Specification-Title': 'UnifiedPOS Standard',
+				   'Specification-Vendor': 'UnifiedPOS Committee',
+                   'Specification-Version': uposVersion,
+                   'Implementation-Title': 'JavaPOS POStest2',
+				   'Implementation-Vendor': 'JavaPOS Community',
+                   'Implementation-Version': version)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Build Dependencies
+///////////////////////////////////////////////////////////////////////////////
+
+repositories {
+	mavenCentral()
+
+    if (!System.getenv('CI')) {
+        mavenLocal()
+    }
+}
+
+dependencies {
+	implementation "org.javapos:javapos-contracts:${uposVersion}.+"
+	implementation "org.javapos:javapos-config-loader:3.1.+"
+	implementation "org.javapos:javapos-controls:${uposVersion}.+"
+	implementation files('lib/jfxrt.jar')
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Build Tasks
+///////////////////////////////////////////////////////////////////////////////
+
+//compileJava {
+//	options {
+//		fork = true
+// 		executable = 'C:/Program Files/Java/jdk-1.8' // the path ot an Oracle JDK, needed for javaFX when compiling against Java8
+// 	}
+//}
+//
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+jar {
+	archiveBaseName = artifactName
+	manifest = javaposManifest
+	from ('CHANGELOG.md') { // TODO to be added
+		into 'META-INF'
+	}
+}
+
+sourcesJar {
+	manifest = javaposManifest
+    from ('CHANGELOG.md') {
+        into 'META-INF'
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Artifact Upload
+///////////////////////////////////////////////////////////////////////////////
+
+nexusPublishing {
+    repositories {
+        sonatype()
+    }
+}
+
+def githubProjectUrl = 'https://github.com/mjpcger/JavaPOS-POStest-2'
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from(components.java)
+			pom {
+				name = artifactName
+				description = 'JavaPOS POStest2 application'
+                url = githubProjectUrl
+				licenses {
+					license {
+						name = 'Public Domain'
+						url = 'https://www.eclipse.org/legal/licenses'
+					}
+				}
+				developers {
+					developer {
+						id = 'javapos'
+						name = 'ntscei@sourceforge.org, ntsjsh@sourceforge.org, ntsggr@github.org, mjpcger@github.org, kuniss@github.org'
+						email = 'builder@javapos.org'
+					}
+				}
+				scm {
+                    connection = "scm:${githubProjectUrl}.git"
+                    developerConnection = "scm:git:${githubProjectUrl}.git"
+                    url = "${githubProjectUrl}.git"
+				}
+			}
+		}
+    }
+}
+
+signing {
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+	sign publishing.publications.mavenJava
+}
